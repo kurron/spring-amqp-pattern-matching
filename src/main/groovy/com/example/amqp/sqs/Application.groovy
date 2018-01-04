@@ -1,22 +1,17 @@
 package com.example.amqp.sqs
 
 import groovy.util.logging.Slf4j
-import org.springframework.amqp.core.AmqpTemplate
-import org.springframework.amqp.core.BindingBuilder
-import org.springframework.amqp.core.HeadersExchange
-import org.springframework.amqp.core.Message
-import org.springframework.amqp.core.Queue
+import org.springframework.amqp.core.*
+import org.springframework.amqp.core.Binding as RabbitBinding
+import org.springframework.amqp.core.Message as RabbitMessage
+import org.springframework.amqp.core.Queue as RabbitQueue
 import org.springframework.amqp.rabbit.annotation.RabbitListener
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.context.annotation.Bean
-import org.springframework.amqp.core.Message as RabbitMessage
-import org.springframework.messaging.MessageHeaders
 import org.springframework.scheduling.annotation.Scheduled
-import org.springframework.amqp.core.MessageBuilder
-import org.springframework.amqp.core.Queue as RabbitQueue
-import org.springframework.amqp.core.Binding as RabbitBinding
+
 import java.util.concurrent.atomic.AtomicInteger
 
 @Slf4j
@@ -32,6 +27,17 @@ class Application {
     @Bean
     HeadersExchange messageRouter() {
         new HeadersExchange( 'message-router' )
+    }
+
+    @Bean
+    RabbitQueue userCommands() {
+        new Queue( 'user-commands' )
+    }
+
+    @Bean
+    RabbitBinding userCommandBinding( RabbitQueue userCommands, HeadersExchange messageRouter ) {
+        def headers = ['message-type': 'command', 'subject': 'user'] as Map<String,Object>
+        BindingBuilder.bind( userCommands ).to( messageRouter ).whereAll( headers ).match()
     }
 
     @Bean
@@ -112,21 +118,24 @@ class Application {
 
     @RabbitListener( queues = 'all-commands' )
     static void allCommands(RabbitMessage message ) {
-        log.info( 'Consumed from all-commands' )
-        dumpMessage( message )
+        dumpMessage( 'all-commands', message )
+    }
+
+    @RabbitListener( queues = 'user-commands' )
+    static void userCommands(RabbitMessage message ) {
+        dumpMessage( 'user-commands', message )
     }
 
     @RabbitListener( queues = 'all-events' )
     static void allEvents(RabbitMessage message ) {
-        log.info( 'Observed from all-events' )
-        dumpMessage( message )
+        dumpMessage( 'all-events', message )
     }
 
-    private static void dumpMessage( Message message ) {
+    private static void dumpMessage( String queue, Message message ) {
         def flattened = message.messageProperties.headers.collectMany { key, value ->
             ["${key}: ${value}"]
         }
-        log.info('    {} {}', message.messageProperties.messageId, flattened )
+        log.info('From {} {} {}', queue, message.messageProperties.messageId, flattened )
     }
 
     static void main( String[] args ) {
