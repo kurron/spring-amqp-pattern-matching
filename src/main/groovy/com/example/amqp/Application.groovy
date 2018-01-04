@@ -14,6 +14,8 @@ import org.springframework.scheduling.annotation.Scheduled
 
 import java.util.concurrent.atomic.AtomicInteger
 
+//TODO: showcase a synchronous request-reply scenario.  I want to know how a spy would react in that instance.
+
 @Slf4j
 @SpringBootApplication
 class Application {
