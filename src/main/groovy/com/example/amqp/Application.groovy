@@ -1,4 +1,4 @@
-package com.example.amqp.sqs
+package com.example.amqp
 
 import groovy.util.logging.Slf4j
 import org.springframework.amqp.core.*
