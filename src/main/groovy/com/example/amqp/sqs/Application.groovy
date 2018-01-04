@@ -4,13 +4,15 @@ import groovy.util.logging.Slf4j
 import org.springframework.amqp.core.AmqpTemplate
 import org.springframework.amqp.core.BindingBuilder
 import org.springframework.amqp.core.HeadersExchange
+import org.springframework.amqp.core.Message
 import org.springframework.amqp.core.Queue
 import org.springframework.amqp.rabbit.annotation.RabbitListener
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.context.annotation.Bean
-import org.springframework.messaging.handler.annotation.Headers
+import org.springframework.amqp.core.Message as RabbitMessage
+import org.springframework.messaging.MessageHeaders
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.amqp.core.MessageBuilder
 import org.springframework.amqp.core.Queue as RabbitQueue
@@ -65,12 +67,18 @@ class Application {
     }
 
     @RabbitListener( queues = 'less-specific' )
-    static String lessSpecific( @Headers Map<String, String> headers, String payload ) {
-        log.info( 'Consuming {} from less-specific', payload )
-        headers.every { key, value ->
-            log.info( '    {}: {}', key, value )
+    static void lessSpecific( RabbitMessage message ) {
+        log.info( 'Consuming {} from less-specific', message.messageProperties.messageId )
+        dumpMessage( message )
+    }
+
+    private static void dumpMessage( Message message ) {
+        message.messageProperties.headers.every { key, value ->
+            log.info('    Header {}: {}', key, value)
         }
-        payload.toUpperCase()
+        message.messageProperties.properties.every { key, value ->
+            log.info('    Property {}: {}', key, value)
+        }
     }
 
     static void main( String[] args ) {
