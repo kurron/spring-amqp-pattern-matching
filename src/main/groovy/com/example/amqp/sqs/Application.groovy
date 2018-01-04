@@ -35,14 +35,25 @@ class Application {
     }
 
     @Bean
-    RabbitQueue lessSpecific() {
-        new Queue( 'less-specific' )
+    RabbitQueue lessSpecificCommand() {
+        new Queue( 'less-specific-command' )
     }
 
     @Bean
-    RabbitBinding lessSpecificBinding( RabbitQueue lessSpecific, HeadersExchange messageRouter ) {
+    RabbitBinding lessSpecificCommandBinding( RabbitQueue lessSpecificCommand, HeadersExchange messageRouter ) {
         def headers = ['message-type': 'command'] as Map<String,Object>
-        BindingBuilder.bind( lessSpecific ).to( messageRouter ).whereAll( headers ).match()
+        BindingBuilder.bind( lessSpecificCommand ).to( messageRouter ).whereAll( headers ).match()
+    }
+
+    @Bean
+    RabbitQueue lessSpecificEvent() {
+        new Queue( 'less-specific-event' )
+    }
+
+    @Bean
+    RabbitBinding lessSpecificEventBinding( RabbitQueue lessSpecificEvent, HeadersExchange messageRouter ) {
+        def headers = ['message-type': 'event'] as Map<String,Object>
+        BindingBuilder.bind( lessSpecificEvent ).to( messageRouter ).whereAll( headers ).match()
     }
 
     /**
@@ -50,8 +61,8 @@ class Application {
      */
     final AtomicInteger counter = new AtomicInteger( 0 )
 
-    @Scheduled( fixedRate = 1000L )
-    void producer() {
+    @Scheduled( fixedRate = 4000L )
+    void lessSpecificCommandProducer() {
 
         def payload = Integer.toHexString( counter.getAndIncrement() )
         def message = MessageBuilder.withBody( payload.bytes )
@@ -66,9 +77,31 @@ class Application {
         template.send(  'message-router', 'should-not-matter', message )
     }
 
-    @RabbitListener( queues = 'less-specific' )
-    static void lessSpecific( RabbitMessage message ) {
-        log.info( 'Consuming {} from less-specific', message.messageProperties.messageId )
+    @Scheduled( fixedRate = 2000L )
+    void lessSpecificEventProducer() {
+
+        def payload = Integer.toHexString( counter.getAndIncrement() )
+        def message = MessageBuilder.withBody( payload.bytes )
+                                    .setAppId( 'pattern-matching' )
+                                    .setContentType( 'text/plain' )
+                                    .setMessageId( UUID.randomUUID() as String )
+                                    .setType( 'counter' )
+                                    .setTimestamp( new Date() )
+                                    .setHeader( 'message-type', 'event' )
+                                    .build()
+        log.info( 'Producing message {}', payload )
+        template.send(  'message-router', 'should-not-matter', message )
+    }
+
+    @RabbitListener( queues = 'less-specific-command' )
+    static void lessSpecificCommand( RabbitMessage message ) {
+        log.info( 'Consuming {} from less-specific-command', message.messageProperties.messageId )
+        dumpMessage( message )
+    }
+
+    @RabbitListener( queues = 'less-specific-event' )
+    static void lessSpecificEvent( RabbitMessage message ) {
+        log.info( 'Consuming {} from less-specific-event', message.messageProperties.messageId )
         dumpMessage( message )
     }
 
