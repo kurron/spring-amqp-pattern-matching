@@ -30,6 +30,17 @@ class Application {
     }
 
     @Bean
+    RabbitQueue userCommandsSpy() {
+        new Queue( 'user-commands-spy' )
+    }
+
+    @Bean
+    RabbitBinding userCommandSpyBinding( RabbitQueue userCommandsSpy, HeadersExchange messageRouter ) {
+        def headers = ['message-type': 'command', 'subject': 'user'] as Map<String,Object>
+        BindingBuilder.bind( userCommandsSpy ).to( messageRouter ).whereAll( headers ).match()
+    }
+
+    @Bean
     RabbitQueue userCommands() {
         new Queue( 'user-commands' )
     }
@@ -124,6 +135,11 @@ class Application {
     @RabbitListener( queues = 'user-commands' )
     static void userCommands(RabbitMessage message ) {
         dumpMessage( 'user-commands', message )
+    }
+
+    @RabbitListener( queues = 'user-commands-spy' )
+    static void userCommandsSpy(RabbitMessage message ) {
+        dumpMessage( 'user-commands-spy', message )
     }
 
     @RabbitListener( queues = 'all-events' )
