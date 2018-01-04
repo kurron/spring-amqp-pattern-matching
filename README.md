@@ -13,7 +13,7 @@ These two properties provide a lot of flexibility in controlling which queues ge
 * I want all commands targeting the user
 * I want all events targeting the user
 
-One interesting scenario is to have messages flowing to a legacy service to also flow to an in-development version, allowing it to experience production traffic without disrupting existing systems.  Out of the box, AMQP does not support canary releases but you can simulate it with a little work.
+One interesting scenario is to have messages flowing to a legacy service to also flow to an in-development version, allowing it to experience production traffic without disrupting existing systems.  Another interesting concept, canary releases, is not supported out of the box but you can simulate it with a little work.
 
 If we adjust our message producers to add an additional boolean property, `canary`, we can flow a percentage of messages to a queue where the value is `true`.  Unfortunately, the producer has to be aware that a canary release is in play and toggle a percentage of the generated messages to have a `true` value.  This implies that a common message producer library is deployed throughout the system, allowing Operations this level of control.  It is possible that a service mesh, such as [Istio](https://istio.io/), might be able handle setting of the canary property, freeing the producer have having to know about deployment-time decisions.
 
