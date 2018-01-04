@@ -22,24 +22,24 @@ Edit `application.yml`, inserting your API keys.
 `./gradlew clean bootRun` will start the server on port `8080` and begin producing messages every second. You should see something similar to this:
 
 ```
-2017-12-22 11:06:36.094  INFO 1154 --- [pool-2-thread-1] com.example.sqs.sqs.SqsApplication       : Producing message 108
-2017-12-22 11:06:36.412  INFO 1154 --- [nerContainer-15] com.example.sqs.sqs.SqsApplication       : Consuming 102 from sqs-experiment
-2017-12-22 11:06:36.412  INFO 1154 --- [nerContainer-15] com.example.sqs.sqs.SqsApplication       :     LogicalResourceId: sqs-experiment
-2017-12-22 11:06:36.602  INFO 1154 --- [nerContainer-10] com.example.sqs.sqs.SqsApplication       : Consuming 106 from secondary-queue
-2017-12-22 11:06:36.608  INFO 1154 --- [nerContainer-10] com.example.sqs.sqs.SqsApplication       :     LogicalResourceId: secondary-queue
-2017-12-22 11:06:36.832  INFO 1154 --- [nerContainer-15] com.example.sqs.sqs.SqsApplication       : Consuming 108 from sqs-experiment
-2017-12-22 11:06:36.832  INFO 1154 --- [nerContainer-15] com.example.sqs.sqs.SqsApplication       :     LogicalResourceId: sqs-experiment
-2017-12-22 11:06:37.094  INFO 1154 --- [pool-2-thread-1] com.example.sqs.sqs.SqsApplication       : Producing message 109
-2017-12-22 11:06:37.306  INFO 1154 --- [nerContainer-15] com.example.sqs.sqs.SqsApplication       : Consuming 103 from secondary-queue
-2017-12-22 11:06:37.306  INFO 1154 --- [nerContainer-14] com.example.sqs.sqs.SqsApplication       : Consuming 107 from secondary-queue
-2017-12-22 11:06:37.306  INFO 1154 --- [nerContainer-15] com.example.sqs.sqs.SqsApplication       :     LogicalResourceId: secondary-queue
-2017-12-22 11:06:37.306  INFO 1154 --- [nerContainer-14] com.example.sqs.sqs.SqsApplication       :     LogicalResourceId: secondary-queue
-2017-12-22 11:06:37.306  INFO 1154 --- [nerContainer-10] com.example.sqs.sqs.SqsApplication       : Consuming 105 from secondary-queue
-2017-12-22 11:06:37.306  INFO 1154 --- [nerContainer-10] com.example.sqs.sqs.SqsApplication       :     LogicalResourceId: secondary-queue
-2017-12-22 11:06:37.306  INFO 1154 --- [nerContainer-16] com.example.sqs.sqs.SqsApplication       : Consuming 104 from secondary-queue
-2017-12-22 11:06:37.306  INFO 1154 --- [nerContainer-16] com.example.sqs.sqs.SqsApplication       :     LogicalResourceId: secondary-queue
-2017-12-22 11:06:37.422  INFO 1154 --- [nerContainer-16] com.example.sqs.sqs.SqsApplication       : Consuming 102 from secondary-queue
-2017-12-22 11:06:37.422  INFO 1154 --- [nerContainer-16] com.example.sqs.sqs.SqsApplication       :     LogicalResourceId: secondary-queue
+2017-12-22 11:06:36.094  INFO 1154 --- [pool-2-thread-1] com.example.amqp.sqs.SqsApplication       : Producing message 108
+2017-12-22 11:06:36.412  INFO 1154 --- [nerContainer-15] com.example.amqp.sqs.SqsApplication       : Consuming 102 from sqs-experiment
+2017-12-22 11:06:36.412  INFO 1154 --- [nerContainer-15] com.example.amqp.sqs.SqsApplication       :     LogicalResourceId: sqs-experiment
+2017-12-22 11:06:36.602  INFO 1154 --- [nerContainer-10] com.example.amqp.sqs.SqsApplication       : Consuming 106 from secondary-queue
+2017-12-22 11:06:36.608  INFO 1154 --- [nerContainer-10] com.example.amqp.sqs.SqsApplication       :     LogicalResourceId: secondary-queue
+2017-12-22 11:06:36.832  INFO 1154 --- [nerContainer-15] com.example.amqp.sqs.SqsApplication       : Consuming 108 from sqs-experiment
+2017-12-22 11:06:36.832  INFO 1154 --- [nerContainer-15] com.example.amqp.sqs.SqsApplication       :     LogicalResourceId: sqs-experiment
+2017-12-22 11:06:37.094  INFO 1154 --- [pool-2-thread-1] com.example.amqp.sqs.SqsApplication       : Producing message 109
+2017-12-22 11:06:37.306  INFO 1154 --- [nerContainer-15] com.example.amqp.sqs.SqsApplication       : Consuming 103 from secondary-queue
+2017-12-22 11:06:37.306  INFO 1154 --- [nerContainer-14] com.example.amqp.sqs.SqsApplication       : Consuming 107 from secondary-queue
+2017-12-22 11:06:37.306  INFO 1154 --- [nerContainer-15] com.example.amqp.sqs.SqsApplication       :     LogicalResourceId: secondary-queue
+2017-12-22 11:06:37.306  INFO 1154 --- [nerContainer-14] com.example.amqp.sqs.SqsApplication       :     LogicalResourceId: secondary-queue
+2017-12-22 11:06:37.306  INFO 1154 --- [nerContainer-10] com.example.amqp.sqs.SqsApplication       : Consuming 105 from secondary-queue
+2017-12-22 11:06:37.306  INFO 1154 --- [nerContainer-10] com.example.amqp.sqs.SqsApplication       :     LogicalResourceId: secondary-queue
+2017-12-22 11:06:37.306  INFO 1154 --- [nerContainer-16] com.example.amqp.sqs.SqsApplication       : Consuming 104 from secondary-queue
+2017-12-22 11:06:37.306  INFO 1154 --- [nerContainer-16] com.example.amqp.sqs.SqsApplication       :     LogicalResourceId: secondary-queue
+2017-12-22 11:06:37.422  INFO 1154 --- [nerContainer-16] com.example.amqp.sqs.SqsApplication       : Consuming 102 from secondary-queue
+2017-12-22 11:06:37.422  INFO 1154 --- [nerContainer-16] com.example.amqp.sqs.SqsApplication       :     LogicalResourceId: secondary-queue
 ```
 
 

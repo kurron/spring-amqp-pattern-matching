@@ -11,3 +11,10 @@ cloud:
 endpoints:
     enabled: true
     sensitive: false
+
+spring:
+    rabbitmq:
+        host: localhost
+        port: 5672
+        username: guest
+        password: guest
