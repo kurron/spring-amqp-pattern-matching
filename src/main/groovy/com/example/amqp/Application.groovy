@@ -15,8 +15,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.context.annotation.Bean
 import org.springframework.scheduling.annotation.Scheduled
 
-import java.util.concurrent.atomic.AtomicInteger
-
 //TODO: showcase a synchronous request-reply scenario.  I want to know how a spy would react in that instance.
 
 @Slf4j
@@ -93,6 +91,18 @@ class Application {
         BindingBuilder.bind( allEvents ).to( messageRouter ).whereAny( headers ).match()
     }
 
+    @Bean
+    RabbitQueue catEvents() {
+        new Queue( 'cat-events' )
+    }
+
+    @Bean
+    RabbitBinding catEventBinding( RabbitQueue catEvents, HeadersExchange messageRouter ) {
+        // AND logic, all headers must match
+        def headers = ['message-type': 'event', 'subject': 'cat'] as Map<String, Object>
+        BindingBuilder.bind( catEvents ).to( messageRouter ).whereAll( headers ).match()
+    }
+
     @Scheduled( fixedRate = 3000L )
     void genericCommandProducer() {
         def selection = topology().get( ThreadLocalRandom.current().nextInt( topology().size() ) )
@@ -146,6 +156,11 @@ class Application {
     @RabbitListener( queues = 'all-events' )
     static void allEvents( RabbitMessage message ) {
         dumpMessage( 'all-events', message )
+    }
+
+    @RabbitListener( queues = 'cat-events' )
+    static void catEvents( RabbitMessage message ) {
+        dumpMessage( 'cat-events', message )
     }
 
     private static void dumpMessage( String queue, Message message ) {
