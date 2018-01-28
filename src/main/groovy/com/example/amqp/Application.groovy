@@ -35,31 +35,38 @@ class Application {
     @Autowired
     ObjectMapper mapper
 
+    /**
+     * List of all subjects the system supports.
+     */
+    def subjects = ['dog', 'cat', 'mouse', 'bear', 'spider', 'tiger', 'lion', 'shark']
+
     @Bean
     HeadersExchange messageRouter() {
         new HeadersExchange( 'message-router' )
     }
 
     @Bean
-    RabbitQueue userCommandsSpy() {
-        new Queue( 'user-commands-spy' )
+    RabbitQueue dogCommandsSpy() {
+        new Queue( 'dog-commands-spy' )
     }
 
     @Bean
-    RabbitBinding userCommandSpyBinding( RabbitQueue userCommandsSpy, HeadersExchange messageRouter ) {
-        def headers = ['message-type': 'command', 'subject': 'user'] as Map<String, Object>
-        BindingBuilder.bind( userCommandsSpy ).to( messageRouter ).whereAll( headers ).match()
+    RabbitBinding dogCommandSpyBinding( RabbitQueue dogCommandsSpy, HeadersExchange messageRouter ) {
+        // AND logic, all headers must match
+        def headers = ['message-type': 'command', 'subject': 'dog'] as Map<String, Object>
+        BindingBuilder.bind( dogCommandsSpy ).to( messageRouter ).whereAll( headers ).match()
     }
 
     @Bean
-    RabbitQueue userCommands() {
-        new Queue( 'user-commands' )
+    RabbitQueue dogCommands() {
+        new Queue( 'dog-commands' )
     }
 
     @Bean
-    RabbitBinding userCommandBinding( RabbitQueue userCommands, HeadersExchange messageRouter ) {
-        def headers = ['message-type': 'command', 'subject': 'user'] as Map<String, Object>
-        BindingBuilder.bind( userCommands ).to( messageRouter ).whereAll( headers ).match()
+    RabbitBinding dogCommandBinding( RabbitQueue dogCommands, HeadersExchange messageRouter ) {
+        // AND logic, all headers must match
+        def headers = ['message-type': 'command', 'subject': 'dog'] as Map<String, Object>
+        BindingBuilder.bind( dogCommands ).to( messageRouter ).whereAll( headers ).match()
     }
 
     @Bean
@@ -69,6 +76,7 @@ class Application {
 
     @Bean
     RabbitBinding lessSpecificCommandBinding( RabbitQueue allCommands, HeadersExchange messageRouter ) {
+        // OR logic, only one of the headers must match
         def headers = ['message-type': 'command'] as Map<String, Object>
         BindingBuilder.bind( allCommands ).to( messageRouter ).whereAny( headers ).match()
     }
@@ -80,14 +88,10 @@ class Application {
 
     @Bean
     RabbitBinding lessSpecificEventBinding( RabbitQueue allEvents, HeadersExchange messageRouter ) {
+        // OR logic, only one of the headers must match
         def headers = ['message-type': 'event'] as Map<String, Object>
         BindingBuilder.bind( allEvents ).to( messageRouter ).whereAny( headers ).match()
     }
-
-    /**
-     * Simple counter to show how messages are sequenced in the queue.
-     */
-    final AtomicInteger counter = new AtomicInteger( 0 )
 
     @Scheduled( fixedRate = 3000L )
     void genericCommandProducer() {
@@ -129,14 +133,14 @@ class Application {
         dumpMessage( 'all-commands', message )
     }
 
-    @RabbitListener( queues = 'user-commands' )
-    static void userCommands( RabbitMessage message ) {
-        dumpMessage( 'user-commands', message )
+    @RabbitListener( queues = 'dog-commands' )
+    static void dogCommands( RabbitMessage message ) {
+        dumpMessage( 'dog-commands', message )
     }
 
-    @RabbitListener( queues = 'user-commands-spy' )
-    static void userCommandsSpy( RabbitMessage message ) {
-        dumpMessage( 'user-commands-spy', message )
+    @RabbitListener( queues = 'dog-commands-spy' )
+    static void dogCommandsSpy( RabbitMessage message ) {
+        dumpMessage( 'dog-commands-spy', message )
     }
 
     @RabbitListener( queues = 'all-events' )
@@ -152,12 +156,12 @@ class Application {
     }
 
     @Memoized
-    private static List<ServicePath> topology() {
-        def nodeCount = 12 // needs to be a multiple of 4
+    private List<ServicePath> topology() {
+        def nodeCount = subjects.size(  ) // needs to be a multiple of 4
         int oneQuarter = nodeCount.intdiv( 4 ).intValue()
         int oneHalf = nodeCount.intdiv( 2 ).intValue()
-        def nodes = (1..nodeCount).collect {
-            new ServicePath( label: it as String, errorPercentage: 0, latencyMilliseconds: 0 )
+        def nodes = subjects.collect {
+            new ServicePath( label: it, errorPercentage: 0, latencyMilliseconds: 0 )
         }
         def bottomTier = (1..oneQuarter).collect { nodes.pop() }.sort()
         def middleTier = (1..oneHalf).collect { nodes.pop() }.sort()

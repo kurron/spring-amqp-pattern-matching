@@ -1,21 +1,21 @@
 # Overview
-This project is a sample that helps to showcase how you can use [Spring AMQP](https://projects.spring.io/spring-amqp/) to support the pattern matching as outlined in [The Tao of Microservices](https://www.safaribooksonline.com/library/view/the-tao-of/9781617293146/).  The basic idea is that message passing is the primary communication mechanism within the system and that routing of message to the appropriate services is done by pattern matching.  Luckily, the AMQP specification allows us to do just that.
+This project is a sample that helps to showcase how you can use [Spring AMQP](https://projects.spring.io/spring-amqp/) to support the pattern matching as outlined in [The Tao of Microservices](https://www.safaribooksonline.com/library/view/the-tao-of/9781617293146/).  The basic idea is that message passing is the primary communication mechanism within the system and that routing of messages to the appropriate services is done by pattern matching.  Luckily, the AMQP specification allows us to do just that.
 
 Routing of messages is done via AMQP headers, not to be confused with AMP Properties which are completely different.  In order for routing to work, your system needs to settle on a handful of key-value pairs -- headers, which AMQP can use to forward the message onto the appropriate queues.  The headers are arbitrary but it seems practical to break things down in this manner:
 
 * message-type -- will be one of `command` or `event`.  A command is an imperative to the system to take some sort of action, such as changing state.  An event is a fact -- an immutable description of something that has already taken place.  A command is meant to be *consumed* while events are meant to be *observed*.  The distinction is that only one consumer can process a command while multiple consumers can process an event.
 * subject -- the target of the message.  In the case of a command, which object to apply the command to.  In the case of an event, which object is the fact about?
 
-These two properties provide a lot of flexibility in controlling which queues get a copy of the message.  For example, if all messages are sent to a single header exchange then queues can be configured like so:
+These two headers provide a lot of flexibility in controlling which queues get a copy of the message.  For example, if all messages are sent to a single header exchange then queues can be configured like so:
 
 * I want all command messages
 * I want all event messages
 * I want all commands targeting the user
 * I want all events targeting the user
 
-One interesting scenario is to have messages flowing to a legacy service to also flow to an in-development version, allowing it to experience production traffic without disrupting existing systems.  Another interesting concept, canary releases, is not supported out of the box but you can simulate it with a little work.
+One interesting scenario is to have messages flowing to a legacy service also flow to an in-development version, allowing it to experience production traffic without disrupting existing systems.  Another interesting concept, canary releases, is not supported out of the box but you can simulate it with a little work.
 
-If we adjust our message producers to add an additional boolean property, `canary`, we can flow a percentage of messages to a queue when the value is `true`.  Unfortunately, the producer has to be aware that a canary release is in play and toggle a percentage of the generated messages to have a `true` value.  This implies that a common message producer library is deployed throughout the system, allowing Operations this level of control.  It is possible that a service mesh, such as [Istio](https://istio.io/), might be able handle setting of the canary property out of band, freeing the producer have having to know about deployment-time decisions.
+If we adjust our message producers to add an additional boolean header, `canary`, we can flow a percentage of messages to a queue when the value is `true`.  Unfortunately, the producer has to be aware that a canary release is in play and toggle a percentage of the generated messages to have a `true` value.  This implies that a common message producer library is deployed throughout the system, allowing Operations this level of control.  It is possible that a service mesh, such as [Istio](https://istio.io/), or a proxy service might be able handle setting of the canary property out of band, freeing the producer have having to know about deployment-time decisions.
 
 # Guidebook
 Details about this project are contained in the [guidebook](guidebook/guidebook.md) and should be considered mandatory reading prior to contributing to this project.
