@@ -1,5 +1,10 @@
 package org.kurron.amqp
 
+import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.databind.ObjectMapper
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.BlockingDeque
+import java.util.concurrent.BlockingQueue
 import java.util.concurrent.ThreadLocalRandom
 
 class TopologyLearningTest {
@@ -36,11 +41,27 @@ class TopologyLearningTest {
                 middle.outbound.add( bottomTier.get( ThreadLocalRandom.current().nextInt( bottomTier.size() ) ) )
             }
         }
-        'foo'
+
+        def mapper = new ObjectMapper()
+        topTier.each {
+            def json = mapper.writeValueAsString( it )
+            println json
+        }
+
+        ''
     }
 
-    static class Node implements Comparable<Node>{
+    static class Node implements Comparable<Node> {
+        @JsonProperty( 'label' )
         final String label
+
+        @JsonProperty( 'error-percentage' )
+        final int errorPercentage
+
+        @JsonProperty( 'latency-milliseconds' )
+        final int latencyMilliseconds
+
+        @JsonProperty( 'outbound' )
         final SortedSet<Node> outbound = new TreeSet<>()
 
         Node(String label) {
@@ -54,7 +75,7 @@ class TopologyLearningTest {
 
         @Override
         int compareTo(Node o) {
-            label.compareTo( o.label )
+            label <=> o.label
         }
     }
 }
