@@ -49,7 +49,7 @@ class Application implements RabbitListenerConfigurer {
     @Qualifier( 'commands' )
     List<RabbitQueue> commandQueues() {
         subjects.collect {
-            QueueBuilder.durable( "${it}-commands" ).build()
+            QueueBuilder.durable( "${it}-commands" ).withArgument( 'x-subject', it ).build()
         }
     }
 
@@ -57,7 +57,7 @@ class Application implements RabbitListenerConfigurer {
     @Qualifier( 'events' )
     List<RabbitQueue> eventQueues() {
         subjects.collect {
-            QueueBuilder.durable( "${it}-events" ).build()
+            QueueBuilder.durable( "${it}-events" ).withArgument( 'x-subject', it ).build()
         }
     }
 
@@ -74,7 +74,7 @@ class Application implements RabbitListenerConfigurer {
     @Bean
     List<RabbitBinding> commandBindings( @Qualifier( 'commands' ) List<RabbitQueue> commandQueues, HeadersExchange messageRouter ) {
         commandQueues.collect {
-            def headers = ['message-type': 'command', 'subject': (it.name)] as Map<String, Object>
+            def headers = ['message-type': 'command', 'subject': (it.arguments.'x-subject')] as Map<String, Object>
             BindingBuilder.bind( it ).to( messageRouter ).whereAll( headers ).match()
         }
     }
@@ -82,7 +82,7 @@ class Application implements RabbitListenerConfigurer {
     @Bean
     List<RabbitBinding> eventBindings( @Qualifier( 'events' ) List<RabbitQueue> eventQueues, HeadersExchange messageRouter ) {
         eventQueues.collect {
-            def headers = ['message-type': 'event', 'subject': (it.name)] as Map<String, Object>
+            def headers = ['message-type': 'event', 'subject': (it.arguments.'x-subject')] as Map<String, Object>
             BindingBuilder.bind( it ).to( messageRouter ).whereAll( headers ).match()
         }
     }
@@ -113,7 +113,7 @@ class Application implements RabbitListenerConfigurer {
                                     .setHeader( 'subject', selection.label )
                                     .build()
         //log.info( 'Producing command message {}', payload )
-        //template.send( 'message-router', 'should-not-matter', message )
+        template.send( 'message-router', 'should-not-matter', message )
     }
 
     @Scheduled( fixedRate = 2000L )
@@ -130,7 +130,7 @@ class Application implements RabbitListenerConfigurer {
                                     .setHeader( 'message-type', 'event' )
                                     .setHeader( 'subject', selection.label )
                                     .build()
-        log.info( 'Producing event message {}', payload )
+        //log.info( 'Producing event message {}', payload )
         template.send( 'message-router', 'should-not-matter', message )
     }
 
