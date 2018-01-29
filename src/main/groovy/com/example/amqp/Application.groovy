@@ -6,10 +6,12 @@ import groovy.util.logging.Slf4j
 import java.util.concurrent.ThreadLocalRandom
 import org.springframework.amqp.core.*
 import org.springframework.amqp.core.Binding as RabbitBinding
-import org.springframework.amqp.core.Message as RabbitMessage
 import org.springframework.amqp.core.Queue as RabbitQueue
-import org.springframework.amqp.rabbit.annotation.RabbitListener
+import org.springframework.amqp.rabbit.annotation.RabbitListenerConfigurer
+import org.springframework.amqp.rabbit.config.SimpleRabbitListenerEndpoint
+import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistrar
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.context.annotation.Bean
@@ -19,7 +21,7 @@ import org.springframework.scheduling.annotation.Scheduled
 
 @Slf4j
 @SpringBootApplication
-class Application {
+class Application implements RabbitListenerConfigurer {
 
     /**
      * Manages interactions with the AMQP broker.
@@ -36,7 +38,7 @@ class Application {
     /**
      * List of all subjects the system supports.
      */
-    def subjects = ['dog', 'cat', 'mouse', 'bear', 'spider', 'tiger', 'lion', 'shark']
+    def subjects = ['dog', 'cat', 'mouse', 'bear']
 
     @Bean
     HeadersExchange messageRouter() {
@@ -44,63 +46,57 @@ class Application {
     }
 
     @Bean
-    RabbitQueue dogCommandsSpy() {
-        new Queue( 'dog-commands-spy' )
+    @Qualifier( 'commands' )
+    List<RabbitQueue> commandQueues() {
+        subjects.collect {
+            QueueBuilder.durable( "${it}-commands" ).build()
+        }
     }
 
     @Bean
-    RabbitBinding dogCommandSpyBinding( RabbitQueue dogCommandsSpy, HeadersExchange messageRouter ) {
-        // AND logic, all headers must match
-        def headers = ['message-type': 'command', 'subject': 'dog'] as Map<String, Object>
-        BindingBuilder.bind( dogCommandsSpy ).to( messageRouter ).whereAll( headers ).match()
+    @Qualifier( 'events' )
+    List<RabbitQueue> eventQueues() {
+        subjects.collect {
+            QueueBuilder.durable( "${it}-events" ).build()
+        }
     }
 
     @Bean
-    RabbitQueue dogCommands() {
-        new Queue( 'dog-commands' )
+    RabbitQueue everyCommandQueue() {
+        QueueBuilder.durable( 'all-commands' ).build()
     }
 
     @Bean
-    RabbitBinding dogCommandBinding( RabbitQueue dogCommands, HeadersExchange messageRouter ) {
-        // AND logic, all headers must match
-        def headers = ['message-type': 'command', 'subject': 'dog'] as Map<String, Object>
-        BindingBuilder.bind( dogCommands ).to( messageRouter ).whereAll( headers ).match()
+    RabbitQueue everyEventQueue() {
+        QueueBuilder.durable( 'all-events' ).build()
     }
 
     @Bean
-    RabbitQueue allCommands() {
-        new Queue( 'all-commands' )
+    List<RabbitBinding> commandBindings( @Qualifier( 'commands' ) List<RabbitQueue> commandQueues, HeadersExchange messageRouter ) {
+        commandQueues.collect {
+            def headers = ['message-type': 'command', 'subject': (it.name)] as Map<String, Object>
+            BindingBuilder.bind( it ).to( messageRouter ).whereAll( headers ).match()
+        }
     }
 
     @Bean
-    RabbitBinding lessSpecificCommandBinding( RabbitQueue allCommands, HeadersExchange messageRouter ) {
-        // OR logic, only one of the headers must match
+    List<RabbitBinding> eventBindings( @Qualifier( 'events' ) List<RabbitQueue> eventQueues, HeadersExchange messageRouter ) {
+        eventQueues.collect {
+            def headers = ['message-type': 'event', 'subject': (it.name)] as Map<String, Object>
+            BindingBuilder.bind( it ).to( messageRouter ).whereAll( headers ).match()
+        }
+    }
+
+    @Bean
+    RabbitBinding commandSpyBinding( RabbitQueue everyCommandQueue, HeadersExchange messageRouter ) {
         def headers = ['message-type': 'command'] as Map<String, Object>
-        BindingBuilder.bind( allCommands ).to( messageRouter ).whereAny( headers ).match()
+        BindingBuilder.bind( everyCommandQueue ).to( messageRouter ).whereAll( headers ).match()
     }
 
     @Bean
-    RabbitQueue allEvents() {
-        new Queue( 'all-events' )
-    }
-
-    @Bean
-    RabbitBinding lessSpecificEventBinding( RabbitQueue allEvents, HeadersExchange messageRouter ) {
-        // OR logic, only one of the headers must match
+    RabbitBinding eventSpyBinding( RabbitQueue everyEventQueue, HeadersExchange messageRouter ) {
         def headers = ['message-type': 'event'] as Map<String, Object>
-        BindingBuilder.bind( allEvents ).to( messageRouter ).whereAny( headers ).match()
-    }
-
-    @Bean
-    RabbitQueue catEvents() {
-        new Queue( 'cat-events' )
-    }
-
-    @Bean
-    RabbitBinding catEventBinding( RabbitQueue catEvents, HeadersExchange messageRouter ) {
-        // AND logic, all headers must match
-        def headers = ['message-type': 'event', 'subject': 'cat'] as Map<String, Object>
-        BindingBuilder.bind( catEvents ).to( messageRouter ).whereAll( headers ).match()
+        BindingBuilder.bind( everyEventQueue ).to( messageRouter ).whereAll( headers ).match()
     }
 
     @Scheduled( fixedRate = 3000L )
@@ -116,8 +112,8 @@ class Application {
                                     .setHeader( 'message-type', 'command' )
                                     .setHeader( 'subject', selection.label )
                                     .build()
-        //log.info( 'Producing message {}', payload )
-        template.send( 'message-router', 'should-not-matter', message )
+        //log.info( 'Producing command message {}', payload )
+        //template.send( 'message-router', 'should-not-matter', message )
     }
 
     @Scheduled( fixedRate = 2000L )
@@ -134,40 +130,26 @@ class Application {
                                     .setHeader( 'message-type', 'event' )
                                     .setHeader( 'subject', selection.label )
                                     .build()
-        //log.info( 'Producing message {}', payload )
+        log.info( 'Producing event message {}', payload )
         template.send( 'message-router', 'should-not-matter', message )
     }
 
-    @RabbitListener( queues = 'all-commands' )
-    static void allCommands( RabbitMessage message ) {
-        dumpMessage( 'all-commands', message )
-    }
-
-    @RabbitListener( queues = 'dog-commands' )
-    static void dogCommands( RabbitMessage message ) {
-        dumpMessage( 'dog-commands', message )
-    }
-
-    @RabbitListener( queues = 'dog-commands-spy' )
-    static void dogCommandsSpy( RabbitMessage message ) {
-        dumpMessage( 'dog-commands-spy', message )
-    }
-
-    @RabbitListener( queues = 'all-events' )
-    static void allEvents( RabbitMessage message ) {
-        dumpMessage( 'all-events', message )
-    }
-
-    @RabbitListener( queues = 'cat-events' )
-    static void catEvents( RabbitMessage message ) {
-        dumpMessage( 'cat-events', message )
-    }
-
-    private static void dumpMessage( String queue, Message message ) {
-        def flattened = message.messageProperties.headers.collectMany { key, value ->
-            ["${key}: ${value}"]
+    @Override
+    void configureRabbitListeners( RabbitListenerEndpointRegistrar registrar ) {
+        commandQueues().each {
+            def endpoint = new SimpleRabbitListenerEndpoint()
+            endpoint.id = "${it.name}-listener"
+            endpoint.queues = it
+            endpoint.messageListener = new MessageProcessor( it.name )
+            registrar.registerEndpoint( endpoint )
         }
-        log.info( 'From {} {} {}', queue, message.messageProperties.messageId, flattened )
+        eventQueues().each {
+            def endpoint = new SimpleRabbitListenerEndpoint()
+            endpoint.id = "${it.name}-listener"
+            endpoint.queues = it
+            endpoint.messageListener = new MessageProcessor( it.name )
+            registrar.registerEndpoint( endpoint )
+        }
     }
 
     @Memoized
