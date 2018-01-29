@@ -1,7 +1,6 @@
 package com.example.amqp
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import groovy.transform.Memoized
 import groovy.util.logging.Slf4j
 import java.util.concurrent.ThreadLocalRandom
 import org.springframework.amqp.core.*
@@ -38,7 +37,10 @@ class Application implements RabbitListenerConfigurer {
     /**
      * List of all subjects the system supports.
      */
-    def subjects = ['dog', 'cat', 'mouse', 'bear']
+    @Bean
+    List<String> subjects() {
+        ['dog', 'cat', 'mouse', 'bear']
+    }
 
     @Bean
     HeadersExchange messageRouter() {
@@ -47,7 +49,7 @@ class Application implements RabbitListenerConfigurer {
 
     @Bean
     @Qualifier( 'commands' )
-    List<RabbitQueue> commandQueues() {
+    List<RabbitQueue> commandQueues( List<String> subjects ) {
         subjects.collect {
             QueueBuilder.durable( "${it}-commands" ).withArgument( 'x-subject', it ).build()
         }
@@ -55,7 +57,7 @@ class Application implements RabbitListenerConfigurer {
 
     @Bean
     @Qualifier( 'events' )
-    List<RabbitQueue> eventQueues() {
+    List<RabbitQueue> eventQueues( List<String> subjects ) {
         subjects.collect {
             QueueBuilder.durable( "${it}-events" ).withArgument( 'x-subject', it ).build()
         }
@@ -159,8 +161,8 @@ class Application implements RabbitListenerConfigurer {
         }
     }
 
-    @Memoized
-    private List<ServicePath> topology() {
+    @Bean
+    List<ServicePath> topology( List<String> subjects ) {
         def nodeCount = subjects.size(  ) // needs to be a multiple of 4
         int oneQuarter = nodeCount.intdiv( 4 ).intValue()
         int oneHalf = nodeCount.intdiv( 2 ).intValue()
