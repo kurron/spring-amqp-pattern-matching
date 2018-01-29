@@ -150,6 +150,13 @@ class Application implements RabbitListenerConfigurer {
             endpoint.messageListener = new MessageProcessor( it.name )
             registrar.registerEndpoint( endpoint )
         }
+        [everyCommandQueue(),everyEventQueue()].each {
+            def endpoint = new SimpleRabbitListenerEndpoint()
+            endpoint.id = "${it.name}-listener"
+            endpoint.queues = it
+            endpoint.messageListener = new MessageProcessor( it.name )
+            registrar.registerEndpoint( endpoint )
+        }
     }
 
     @Memoized
