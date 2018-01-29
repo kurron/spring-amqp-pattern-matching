@@ -2,37 +2,25 @@ package com.example.amqp
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import groovy.util.logging.Slf4j
-import java.util.concurrent.ThreadLocalRandom
-import org.springframework.amqp.core.*
+import org.springframework.amqp.core.AmqpTemplate
 import org.springframework.amqp.core.Binding as RabbitBinding
+import org.springframework.amqp.core.BindingBuilder
+import org.springframework.amqp.core.HeadersExchange
 import org.springframework.amqp.core.Queue as RabbitQueue
+import org.springframework.amqp.core.QueueBuilder
 import org.springframework.amqp.rabbit.annotation.RabbitListenerConfigurer
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerEndpoint
 import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistrar
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.context.annotation.Bean
-import org.springframework.scheduling.annotation.Scheduled
 
 //TODO: showcase a synchronous request-reply scenario.  I want to know how a spy would react in that instance.
 
 @Slf4j
 @SpringBootApplication
 class Application implements RabbitListenerConfigurer {
-
-    /**
-     * Manages interactions with the AMQP broker.
-     */
-    @Autowired
-    AmqpTemplate template
-
-    /**
-     * JSON codec.
-     */
-    @Autowired
-    ObjectMapper mapper
 
     /**
      * List of all subjects the system supports.
@@ -101,40 +89,6 @@ class Application implements RabbitListenerConfigurer {
         BindingBuilder.bind( everyEventQueue ).to( messageRouter ).whereAll( headers ).match()
     }
 
-    @Scheduled( fixedRate = 3000L )
-    void genericCommandProducer() {
-        def selection = topology().get( ThreadLocalRandom.current().nextInt( topology().size() ) )
-        def payload = mapper.writeValueAsString( selection )
-        def message = MessageBuilder.withBody( payload.bytes )
-                                    .setAppId( 'pattern-matching' )
-                                    .setContentType( 'text/plain' )
-                                    .setMessageId( UUID.randomUUID() as String )
-                                    .setType( 'counter' )
-                                    .setTimestamp( new Date() )
-                                    .setHeader( 'message-type', 'command' )
-                                    .setHeader( 'subject', selection.label )
-                                    .build()
-        //log.info( 'Producing command message {}', payload )
-        template.send( 'message-router', 'should-not-matter', message )
-    }
-
-    @Scheduled( fixedRate = 2000L )
-    void genericEventProducer() {
-
-        def selection = topology().get( ThreadLocalRandom.current().nextInt( topology().size() ) )
-        def payload = mapper.writeValueAsString( selection )
-        def message = MessageBuilder.withBody( payload.bytes )
-                                    .setAppId( 'pattern-matching' )
-                                    .setContentType( 'text/plain' )
-                                    .setMessageId( UUID.randomUUID() as String )
-                                    .setType( 'counter' )
-                                    .setTimestamp( new Date() )
-                                    .setHeader( 'message-type', 'event' )
-                                    .setHeader( 'subject', selection.label )
-                                    .build()
-        //log.info( 'Producing event message {}', payload )
-        template.send( 'message-router', 'should-not-matter', message )
-    }
 
     @Override
     void configureRabbitListeners( RabbitListenerEndpointRegistrar registrar ) {
@@ -162,32 +116,13 @@ class Application implements RabbitListenerConfigurer {
     }
 
     @Bean
-    List<ServicePath> topology( List<String> subjects ) {
-        def nodeCount = subjects.size(  ) // needs to be a multiple of 4
-        int oneQuarter = nodeCount.intdiv( 4 ).intValue()
-        int oneHalf = nodeCount.intdiv( 2 ).intValue()
-        def nodes = subjects.collect {
-            new ServicePath( label: it, errorPercentage: 0, latencyMilliseconds: 0 )
-        }
-        def bottomTier = (1..oneQuarter).collect { nodes.pop() }.sort()
-        def middleTier = (1..oneHalf).collect { nodes.pop() }.sort()
-        def topTier = (1..oneQuarter).collect { nodes.pop() }.sort()
+    TopologyGenerator generator() {
+        new TopologyGenerator()
+    }
 
-        topTier.each { top ->
-            def numberToAdd = ThreadLocalRandom.current().nextInt( middleTier.size() ) + 1
-            numberToAdd.times {
-                top.outbound.add( middleTier.get( ThreadLocalRandom.current().nextInt( middleTier.size() ) ) )
-            }
-        }
-
-        middleTier.each { middle ->
-            def numberToAdd = ThreadLocalRandom.current().nextInt( bottomTier.size() ) + 1
-            numberToAdd.times {
-                middle.outbound.add( bottomTier.get( ThreadLocalRandom.current().nextInt( bottomTier.size() ) ) )
-            }
-        }
-
-        topTier
+    @Bean
+    MessageProducer MessageProducer( TopologyGenerator generator, List<String> subjects, AmqpTemplate template,  ObjectMapper mapper ) {
+        new MessageProducer( generator.generate( subjects ), template, mapper )
     }
 
     static void main( String[] args ) {
