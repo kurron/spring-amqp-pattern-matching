@@ -6,11 +6,13 @@ import org.springframework.amqp.core.AmqpTemplate
 import org.springframework.amqp.core.Binding as RabbitBinding
 import org.springframework.amqp.core.BindingBuilder
 import org.springframework.amqp.core.HeadersExchange
+import org.springframework.amqp.core.MessageListener
 import org.springframework.amqp.core.Queue as RabbitQueue
 import org.springframework.amqp.core.QueueBuilder
 import org.springframework.amqp.rabbit.annotation.RabbitListenerConfigurer
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerEndpoint
 import org.springframework.amqp.rabbit.listener.RabbitListenerEndpointRegistrar
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.autoconfigure.SpringBootApplication
@@ -21,6 +23,12 @@ import org.springframework.context.annotation.Bean
 @Slf4j
 @SpringBootApplication
 class Application implements RabbitListenerConfigurer {
+
+    @Autowired
+    private ObjectMapper mapper
+
+    @Autowired
+    private AmqpTemplate template
 
     /**
      * List of all subjects the system supports.
@@ -89,29 +97,22 @@ class Application implements RabbitListenerConfigurer {
         BindingBuilder.bind( everyEventQueue ).to( messageRouter ).whereAll( headers ).match()
     }
 
+    @Bean
+    List<SimpleRabbitListenerEndpoint> endpoints() {
+        def queues = commandQueues() + eventQueues() + [everyCommandQueue(),everyEventQueue()]
+        queues.collect {
+            def endpoint = new SimpleRabbitListenerEndpoint()
+            endpoint.id = "${it.name}-listener"
+            endpoint.queues = it
+            endpoint.messageListener = new MessageProcessor( it.name, mapper, template )
+            endpoint
+        }
+    }
 
     @Override
     void configureRabbitListeners( RabbitListenerEndpointRegistrar registrar ) {
-        commandQueues().each {
-            def endpoint = new SimpleRabbitListenerEndpoint()
-            endpoint.id = "${it.name}-listener"
-            endpoint.queues = it
-            endpoint.messageListener = new MessageProcessor( it.name )
-            registrar.registerEndpoint( endpoint )
-        }
-        eventQueues().each {
-            def endpoint = new SimpleRabbitListenerEndpoint()
-            endpoint.id = "${it.name}-listener"
-            endpoint.queues = it
-            endpoint.messageListener = new MessageProcessor( it.name )
-            registrar.registerEndpoint( endpoint )
-        }
-        [everyCommandQueue(),everyEventQueue()].each {
-            def endpoint = new SimpleRabbitListenerEndpoint()
-            endpoint.id = "${it.name}-listener"
-            endpoint.queues = it
-            endpoint.messageListener = new MessageProcessor( it.name )
-            registrar.registerEndpoint( endpoint )
+        endpoints().each {
+            registrar.registerEndpoint( it )
         }
     }
 
