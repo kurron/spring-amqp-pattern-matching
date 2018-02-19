@@ -6,7 +6,6 @@ import org.springframework.amqp.core.AmqpTemplate
 import org.springframework.amqp.core.Binding as RabbitBinding
 import org.springframework.amqp.core.BindingBuilder
 import org.springframework.amqp.core.HeadersExchange
-import org.springframework.amqp.core.MessageListener
 import org.springframework.amqp.core.Queue as RabbitQueue
 import org.springframework.amqp.core.QueueBuilder
 import org.springframework.amqp.rabbit.annotation.RabbitListenerConfigurer
@@ -98,7 +97,7 @@ class Application implements RabbitListenerConfigurer {
     }
 
     @Bean
-    List<SimpleRabbitListenerEndpoint> endpoints() {
+    List<SimpleRabbitListenerEndpoint> endpoints( ObjectMapper mapper, AmqpTemplate template ) {
         def queues = commandQueues() + eventQueues() + [everyCommandQueue(),everyEventQueue()]
         queues.collect {
             def endpoint = new SimpleRabbitListenerEndpoint()
@@ -111,7 +110,7 @@ class Application implements RabbitListenerConfigurer {
 
     @Override
     void configureRabbitListeners( RabbitListenerEndpointRegistrar registrar ) {
-        endpoints().each {
+        endpoints( mapper, template ).each {
             registrar.registerEndpoint( it )
         }
     }
