@@ -2,10 +2,11 @@ package com.example.amqp
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import groovy.transform.Canonical
-import java.util.concurrent.ThreadLocalRandom
 import org.springframework.amqp.core.AmqpTemplate
 import org.springframework.amqp.core.MessageBuilder
 import org.springframework.scheduling.annotation.Scheduled
+
+import java.util.concurrent.ThreadLocalRandom
 
 @Canonical
 class MessageProducer {
@@ -45,7 +46,7 @@ class MessageProducer {
         template.send( 'message-router', 'should-not-matter', message )
     }
 
-    @Scheduled( fixedRate = 2000L )
+    //@Scheduled( fixedRate = 2000L )
     void genericEventProducer() {
 
         def selection = topology.get( ThreadLocalRandom.current().nextInt( topology.size() ) )

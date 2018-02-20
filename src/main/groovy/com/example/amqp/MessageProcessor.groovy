@@ -26,27 +26,25 @@ class MessageProcessor implements MessageListener {
     }
 
     @Override
-    void onMessage( Message message ) {
-        dumpMessage( queueName, message )
-        def servicePath = mapper.readValue( message.body, ServicePath )
+    void onMessage( Message incoming ) {
+        dumpMessage( queueName, incoming )
+        def servicePath = mapper.readValue( incoming.body, ServicePath )
+        log.debug( 'Simulating latency of {} milliseconds', servicePath.latencyMilliseconds )
         Thread.sleep( servicePath.latencyMilliseconds )
         servicePath.outbound.each {
-            // send the payload onto RabbitMQ
             def payload = mapper.writeValueAsString( it )
-            def messageX = MessageBuilder.withBody( payload.bytes )
-                                        .setAppId( 'pattern-matching' )
-                                        .setContentType( 'text/plain' )
-                                        .setMessageId( UUID.randomUUID() as String )
-                                        .setType( 'counter' )
-                                        .setTimestamp( new Date() )
-                                        .setHeader( 'message-type', 'command' )
-                                        .setHeader( 'subject', it.label )
-                                        .build()
+            def outgoing = MessageBuilder.withBody( payload.bytes )
+                                         .setAppId( 'pattern-matching' )
+                                         .setContentType( 'text/plain' )
+                                         .setMessageId( UUID.randomUUID() as String )
+                                         .setType( 'counter' )
+                                         .setTimestamp( new Date() )
+                                         .setHeader( 'message-type', 'command' )
+                                         .setHeader( 'subject', it.label )
+                                         .build()
             //log.info( 'Producing command message {}', payload )
-            template.send( 'message-router', 'should-not-matter', messageX )
-
+            template.send( 'message-router', 'should-not-matter', outgoing )
         }
-        ''
     }
 
     private static void dumpMessage( String queue, Message message ) {

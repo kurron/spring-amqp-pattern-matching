@@ -1,6 +1,7 @@
 package com.example.amqp
 
 import groovy.transform.Canonical
+
 import java.util.concurrent.ThreadLocalRandom
 
 /**
@@ -14,7 +15,8 @@ class TopologyGenerator {
         int oneQuarter = nodeCount.intdiv( 4 ).intValue()
         int oneHalf = nodeCount.intdiv( 2 ).intValue()
         def nodes = subjects.collect {
-            new ServicePath( label: it, errorPercentage: 0, latencyMilliseconds: 0 )
+            int latency = ThreadLocalRandom.current().nextInt( 250 )
+            new ServicePath( label: it, errorPercentage: 0, latencyMilliseconds: latency )
         }
         def bottomTier = (1..oneQuarter).collect { nodes.pop() }.sort()
         def middleTier = (1..oneHalf).collect { nodes.pop() }.sort()
