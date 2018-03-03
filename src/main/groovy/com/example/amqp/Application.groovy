@@ -1,5 +1,8 @@
 package com.example.amqp
 
+import com.amazonaws.xray.AWSXRay
+import com.amazonaws.xray.AWSXRayRecorderBuilder
+import com.amazonaws.xray.strategy.sampling.LocalizedSamplingStrategy
 import com.fasterxml.jackson.databind.ObjectMapper
 import groovy.util.logging.Slf4j
 import org.springframework.amqp.core.AmqpTemplate
@@ -28,6 +31,13 @@ class Application implements RabbitListenerConfigurer {
 
     @Autowired
     private AmqpTemplate template
+
+    static {
+        def builder = AWSXRayRecorderBuilder.standard().withPlugin( new ApplicationPlugin() )
+        def ruleFile = Application.class.getResource( '/sampling-rules.json' )
+        builder.withSamplingStrategy( new LocalizedSamplingStrategy( ruleFile ) )
+        AWSXRay.setGlobalRecorder( builder.build() )
+    }
 
     /**
      * List of all subjects the system supports.
