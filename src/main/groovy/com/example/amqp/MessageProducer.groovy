@@ -34,7 +34,7 @@ class MessageProducer {
 
     @Scheduled( fixedRate = 3000L )
     void genericCommandProducer() {
-        def segment =  AWSXRay.beginSegment('command' )
+        def segment =  AWSXRay.beginSegment('front-door' )
 
         try {
             def selection = topology.get( ThreadLocalRandom.current().nextInt( topology.size() ) )
