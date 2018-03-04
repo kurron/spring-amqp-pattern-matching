@@ -48,6 +48,7 @@ class MessageProducer {
         }
         catch ( Exception e ) {
             segment.addException( e )
+            segment.putHttp( 'response', ['status': 500] )
             throw e
         }
         finally {
@@ -73,13 +74,9 @@ class MessageProducer {
                                         .build()
             //log.info( 'Producing command message {}', payload )
             def response = template.sendAndReceive( 'message-router', 'should-not-matter', message )
-            //TODO: add latency attributes
-            'foo'
-/*
             if ( !response ) {
                 throw new IllegalStateException(  'Reply took too long!' )
             }
-*/
         }
     }
 

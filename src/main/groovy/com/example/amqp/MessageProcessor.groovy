@@ -50,6 +50,7 @@ class MessageProcessor implements MessageListener {
         }
         catch ( Exception e ) {
             segment.addException( e )
+            segment.putHttp( 'response', ['status': 500] )
             throw e
         }
         finally {
@@ -73,7 +74,9 @@ class MessageProcessor implements MessageListener {
             def responses = toSend.collect {
                 template.sendAndReceive('message-router', 'should-not-matter', it )
             }
-            //responses.each { if ( !it ) throw new IllegalStateException( 'Reply timed out!' ) }
+            if ( responses.any { !it  } ) {
+                throw new IllegalStateException( 'Request timed out!' )
+            }
             def returnAddress = message.messageProperties.replyToAddress
             template.send( returnAddress.exchangeName, returnAddress.routingKey, createResponseMessage( message.messageProperties.correlationIdString, servicePath.label ) )
         }
