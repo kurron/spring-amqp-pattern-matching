@@ -27,9 +27,22 @@ class MessageProcessor implements MessageListener {
         this.template = template
     }
 
+    static void xrayTemplate( Message incoming, Closure logic ) {
+        try {
+            logic.call( incoming )
+        }
+        catch ( Exception e ) {
+            AWSXRay.globalRecorder.currentSegment.addException( e )
+            throw e
+        }
+        finally {
+            AWSXRay.globalRecorder.endSegment()
+        }
+    }
+
     @Override
     void onMessage( Message incoming ) {
-        try {
+        xrayTemplate( incoming ) {
             dumpMessage( queueName, incoming )
 
             def traceString = incoming.messageProperties.headers.get( TraceHeader.HEADER_KEY ) as String
@@ -37,10 +50,10 @@ class MessageProcessor implements MessageListener {
             def traceId = incomingHeader.rootTraceId
             def parentId = incomingHeader.parentId
             def name = "${incoming.messageProperties.headers.get( 'message-type' ) as String}/${incoming.messageProperties.headers.get( 'subject' ) as String}"
-            def created = AWSXRay.globalRecorder.beginSegment( name, traceId, parentId )
-            def header = new TraceHeader( created.traceId,
-                                          created.sampled ? created.id : null,
-                                          created.sampled ? TraceHeader.SampleDecision.SAMPLED : TraceHeader.SampleDecision.NOT_SAMPLED )
+            def segment = AWSXRay.globalRecorder.beginSegment( name, traceId, parentId )
+            def header = new TraceHeader( segment.traceId,
+                                          segment.sampled ? segment.id : null,
+                                          segment.sampled ? TraceHeader.SampleDecision.SAMPLED : TraceHeader.SampleDecision.NOT_SAMPLED )
 
             def servicePath = mapper.readValue( incoming.body, ServicePath )
             log.debug( 'Simulating latency of {} milliseconds', servicePath.latencyMilliseconds )
@@ -58,15 +71,8 @@ class MessageProcessor implements MessageListener {
                                              .setHeader( TraceHeader.HEADER_KEY, header as String )
                                              .build()
                 //log.info( 'Producing command message {}', payload )
-                template.send( 'message-router', 'should-not-matter', outgoing )
+                template.send('message-router', 'should-not-matter', outgoing )
             }
-        }
-        catch ( Exception e ) {
-            AWSXRay.globalRecorder.currentSegment.addException( e )
-            throw e
-        }
-        finally {
-            AWSXRay.globalRecorder.endSegment()
         }
     }
 
