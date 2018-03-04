@@ -9,6 +9,8 @@ import org.springframework.amqp.core.Message
 import org.springframework.amqp.core.MessageBuilder
 import org.springframework.amqp.core.MessageListener
 
+import java.util.concurrent.ThreadLocalRandom
+
 @Slf4j
 class MessageProcessor implements MessageListener {
 
@@ -58,6 +60,10 @@ class MessageProcessor implements MessageListener {
             def servicePath = mapper.readValue( incoming.body, ServicePath )
             log.debug( 'Simulating latency of {} milliseconds', servicePath.latencyMilliseconds )
             Thread.sleep( servicePath.latencyMilliseconds )
+            def simulateFailure = ThreadLocalRandom.current().nextInt( 100 ) < servicePath.errorPercentage
+            if ( simulateFailure ) {
+                throw new IllegalStateException( 'Simulated failure!' )
+            }
             servicePath.outbound.each {
                 def payload = mapper.writeValueAsString( it )
                 def outgoing = MessageBuilder.withBody( payload.bytes )
