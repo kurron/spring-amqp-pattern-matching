@@ -9,6 +9,7 @@ import org.springframework.amqp.core.Message
 import org.springframework.amqp.core.MessageBuilder
 import org.springframework.amqp.core.MessageListener
 
+import javax.naming.TimeLimitExceededException
 import java.util.concurrent.ThreadLocalRandom
 
 @Slf4j
@@ -48,6 +49,11 @@ class MessageProcessor implements MessageListener {
             logic.call( incoming, header )
             segment.putHttp( 'response', ['status': 200] )
         }
+        catch ( TimeLimitExceededException e ) {
+            segment.addException( e )
+            segment.putHttp( 'response', ['status': 429] )
+            //throw e
+        }
         catch ( Exception e ) {
             segment.addException( e )
             segment.putHttp( 'response', ['status': 500] )
@@ -81,7 +87,7 @@ class MessageProcessor implements MessageListener {
             }
 */
             if ( responses.any { !it  } ) {
-                throw new IllegalStateException( 'Request timed out!' )
+                throw new TimeLimitExceededException( 'Request timed out!' )
             }
             def returnAddress = message.messageProperties.replyToAddress
             template.send( returnAddress.exchangeName, returnAddress.routingKey, createResponseMessage( message.messageProperties.correlationIdString, servicePath.label ) )

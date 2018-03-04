@@ -9,6 +9,7 @@ import org.springframework.amqp.core.AmqpTemplate
 import org.springframework.amqp.core.MessageBuilder
 import org.springframework.scheduling.annotation.Scheduled
 
+import javax.naming.TimeLimitExceededException
 import java.util.concurrent.ThreadLocalRandom
 
 @Canonical
@@ -46,6 +47,11 @@ class MessageProducer {
             logic.call( header )
             segment.putHttp( 'response', ['status': 200] )
         }
+        catch ( TimeLimitExceededException e ) {
+            segment.addException( e )
+            segment.putHttp( 'response', ['status': 429] )
+            //throw e
+        }
         catch ( Exception e ) {
             segment.addException( e )
             segment.putHttp( 'response', ['status': 500] )
@@ -75,7 +81,7 @@ class MessageProducer {
             //log.info( 'Producing command message {}', payload )
             def response = template.sendAndReceive( 'message-router', 'should-not-matter', message )
             if ( !response ) {
-                throw new IllegalStateException(  'Reply took too long!' )
+                throw new TimeLimitExceededException(  'Reply took too long!' )
             }
         }
     }
