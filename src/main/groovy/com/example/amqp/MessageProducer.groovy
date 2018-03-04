@@ -2,6 +2,7 @@ package com.example.amqp
 
 import com.amazonaws.xray.AWSXRay
 import com.amazonaws.xray.entities.Namespace
+import com.amazonaws.xray.entities.Segment
 import com.amazonaws.xray.entities.TraceHeader
 import com.fasterxml.jackson.databind.ObjectMapper
 import groovy.transform.Canonical
@@ -32,32 +33,10 @@ class MessageProducer {
         mapper = aMapper
     }
 
-    @Scheduled( fixedRate = 3000L )
-    void genericCommandProducer() {
-        def segment =  AWSXRay.beginSegment('front-door' )
-
+    static void xrayTemplate( String segmentName, Closure logic ) {
+        def segment =  AWSXRay.beginSegment( segmentName )
         try {
-            def selection = topology.get( ThreadLocalRandom.current().nextInt( topology.size() ) )
-
-            segment.setNamespace( Namespace.REMOTE as String )
-            def parentSegment = segment.parentSegment
-            def header = new TraceHeader( parentSegment.traceId,
-                                          parentSegment.sampled ? segment.id : null,
-                                          parentSegment.sampled ? TraceHeader.SampleDecision.SAMPLED : TraceHeader.SampleDecision.NOT_SAMPLED )
-
-            def payload = mapper.writeValueAsString( selection )
-            def message = MessageBuilder.withBody( payload.bytes )
-                                        .setAppId( 'pattern-matching' )
-                                        .setContentType( 'text/plain' )
-                                        .setMessageId( UUID.randomUUID() as String )
-                                        .setType( 'counter' )
-                                        .setTimestamp( new Date() )
-                                        .setHeader( 'message-type', 'command' )
-                                        .setHeader( 'subject', selection.label )
-                                        .setHeader( TraceHeader.HEADER_KEY, header as String )
-                                        .build()
-            //log.info( 'Producing command message {}', payload )
-            template.send( 'message-router', 'should-not-matter', message )
+            logic.call( segment )
         }
         catch ( Exception e ) {
             segment.addException( e )
@@ -65,6 +44,32 @@ class MessageProducer {
         }
         finally {
             AWSXRay.endSegment()
+        }
+    }
+
+    @Scheduled( fixedRate = 3000L )
+    void genericCommandProducer() {
+        xrayTemplate( 'front-door' ) { Segment segment ->
+            def selection = topology.get( ThreadLocalRandom.current().nextInt( topology.size() ) )
+            segment.setNamespace( Namespace.REMOTE as String )
+            def parentSegment = segment.parentSegment
+            def header = new TraceHeader( parentSegment.traceId,
+                    parentSegment.sampled ? segment.id : null,
+                    parentSegment.sampled ? TraceHeader.SampleDecision.SAMPLED : TraceHeader.SampleDecision.NOT_SAMPLED )
+
+            def payload = mapper.writeValueAsString( selection )
+            def message = MessageBuilder.withBody( payload.bytes )
+                    .setAppId( 'pattern-matching' )
+                    .setContentType( 'text/plain' )
+                    .setMessageId( UUID.randomUUID() as String )
+                    .setType( 'counter' )
+                    .setTimestamp( new Date() )
+                    .setHeader( 'message-type', 'command' )
+                    .setHeader( 'subject', selection.label )
+                    .setHeader( TraceHeader.HEADER_KEY, header as String )
+                    .build()
+            //log.info( 'Producing command message {}', payload )
+            template.send( 'message-router', 'should-not-matter', message )
         }
     }
 
