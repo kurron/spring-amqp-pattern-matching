@@ -44,7 +44,7 @@ class Application implements RabbitListenerConfigurer {
      */
     @Bean
     List<String> subjects() {
-        ['dog', 'cat', 'mouse', 'bear', 'dolphin', 'shark', 'whale', 'otter']
+        ['dog', 'cat', 'mouse', 'bear']
     }
 
     @Bean

@@ -2,7 +2,6 @@ package com.example.amqp
 
 import com.amazonaws.xray.AWSXRay
 import com.amazonaws.xray.entities.Namespace
-import com.amazonaws.xray.entities.Segment
 import com.amazonaws.xray.entities.TraceHeader
 import com.fasterxml.jackson.databind.ObjectMapper
 import groovy.transform.Canonical
@@ -36,7 +35,16 @@ class MessageProducer {
     static void xrayTemplate( String segmentName, Closure logic ) {
         def segment =  AWSXRay.beginSegment( segmentName )
         try {
-            logic.call( segment )
+            segment.setNamespace( Namespace.REMOTE as String )
+            def parentSegment = segment.parentSegment
+            def header = new TraceHeader( parentSegment.traceId,
+                                          parentSegment.sampled ? segment.id : null,
+                                          parentSegment.sampled ? TraceHeader.SampleDecision.SAMPLED : TraceHeader.SampleDecision.NOT_SAMPLED )
+            segment.putAnnotation( 'subject', 'front-door' )
+            def requestInformation = ['url': 'amqp://example.com', 'method': 'command']
+            segment.putHttp( 'request', requestInformation )
+            logic.call( header )
+            segment.putHttp( 'response', ['status': 200] )
         }
         catch ( Exception e ) {
             segment.addException( e )
@@ -49,27 +57,29 @@ class MessageProducer {
 
     @Scheduled( fixedRate = 3000L )
     void genericCommandProducer() {
-        xrayTemplate( 'front-door' ) { Segment segment ->
+        xrayTemplate( 'front-door' ) { TraceHeader header ->
             def selection = topology.get( ThreadLocalRandom.current().nextInt( topology.size() ) )
-            segment.setNamespace( Namespace.REMOTE as String )
-            def parentSegment = segment.parentSegment
-            def header = new TraceHeader( parentSegment.traceId,
-                    parentSegment.sampled ? segment.id : null,
-                    parentSegment.sampled ? TraceHeader.SampleDecision.SAMPLED : TraceHeader.SampleDecision.NOT_SAMPLED )
-
             def payload = mapper.writeValueAsString( selection )
             def message = MessageBuilder.withBody( payload.bytes )
-                    .setAppId( 'pattern-matching' )
-                    .setContentType( 'text/plain' )
-                    .setMessageId( UUID.randomUUID() as String )
-                    .setType( 'counter' )
-                    .setTimestamp( new Date() )
-                    .setHeader( 'message-type', 'command' )
-                    .setHeader( 'subject', selection.label )
-                    .setHeader( TraceHeader.HEADER_KEY, header as String )
-                    .build()
+                                        .setAppId( 'pattern-matching' )
+                                        .setContentType( 'text/plain' )
+                                        .setMessageId( UUID.randomUUID() as String )
+                                        .setType( 'service-call' )
+                                        .setTimestamp( new Date() )
+                                        .setCorrelationIdString( UUID.randomUUID() as String )
+                                        .setHeader( 'message-type', 'command' )
+                                        .setHeader( 'subject', selection.label )
+                                        .setHeader( TraceHeader.HEADER_KEY, header as String )
+                                        .build()
             //log.info( 'Producing command message {}', payload )
-            template.send( 'message-router', 'should-not-matter', message )
+            def response = template.sendAndReceive( 'message-router', 'should-not-matter', message )
+            //TODO: add latency attributes
+            'foo'
+/*
+            if ( !response ) {
+                throw new IllegalStateException(  'Reply took too long!' )
+            }
+*/
         }
     }
 
