@@ -49,7 +49,7 @@ class MessageProducer {
         catch ( Exception e ) {
             segment.addException( e )
             segment.putHttp( 'response', ['status': 500] )
-            throw e
+            //throw e
         }
         finally {
             AWSXRay.endSegment()

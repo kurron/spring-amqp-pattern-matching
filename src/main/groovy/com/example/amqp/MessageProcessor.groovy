@@ -51,7 +51,7 @@ class MessageProcessor implements MessageListener {
         catch ( Exception e ) {
             segment.addException( e )
             segment.putHttp( 'response', ['status': 500] )
-            throw e
+            //throw e
         }
         finally {
             AWSXRay.endSegment()
@@ -71,9 +71,15 @@ class MessageProcessor implements MessageListener {
             def toSend = servicePath.outbound.collect {
                 createDownstreamMessage( it, header )
             }
+            def responses = toSend.parallelStream()
+                            .map( { template.sendAndReceive('message-router', 'should-not-matter', it ) } )
+                            .toArray()
+                            .toList() as List<Message>
+/*
             def responses = toSend.collect {
                 template.sendAndReceive('message-router', 'should-not-matter', it )
             }
+*/
             if ( responses.any { !it  } ) {
                 throw new IllegalStateException( 'Request timed out!' )
             }
