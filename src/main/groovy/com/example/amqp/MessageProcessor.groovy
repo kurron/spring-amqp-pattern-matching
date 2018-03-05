@@ -8,6 +8,7 @@ import org.springframework.amqp.core.AmqpTemplate
 import org.springframework.amqp.core.Message
 import org.springframework.amqp.core.MessageBuilder
 import org.springframework.amqp.core.MessageListener
+import org.springframework.amqp.rabbit.core.RabbitTemplate
 
 import javax.naming.TimeLimitExceededException
 import java.util.concurrent.ThreadLocalRandom
@@ -22,7 +23,7 @@ class MessageProcessor implements MessageListener {
      */
     private final ObjectMapper mapper
 
-    private final AmqpTemplate template
+    private final RabbitTemplate template
 
     MessageProcessor( String queueName, ObjectMapper mapper, AmqpTemplate template ) {
         this.queueName = queueName
@@ -31,6 +32,7 @@ class MessageProcessor implements MessageListener {
     }
 
     void xrayTemplate( Message incoming, Closure logic ) {
+        //template.setReplyTimeout( 1000 )
         def traceString = incoming.messageProperties.headers.get( TraceHeader.HEADER_KEY ) as String
         def name = "${incoming.messageProperties.headers.get( 'subject' ) as String}"
         def incomingHeader = TraceHeader.fromString( traceString )
@@ -51,11 +53,14 @@ class MessageProcessor implements MessageListener {
         }
         catch ( TimeLimitExceededException e ) {
             segment.addException( e )
+            segment.setThrottle( true )
+            segment.setError( true )
             segment.putHttp( 'response', ['status': 429] )
             //throw e
         }
         catch ( Exception e ) {
             segment.addException( e )
+            segment.setFault( true )
             segment.putHttp( 'response', ['status': 500] )
             //throw e
         }

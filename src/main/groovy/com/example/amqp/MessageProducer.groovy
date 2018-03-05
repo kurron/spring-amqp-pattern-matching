@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import groovy.transform.Canonical
 import org.springframework.amqp.core.AmqpTemplate
 import org.springframework.amqp.core.MessageBuilder
+import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.scheduling.annotation.Scheduled
 
 import javax.naming.TimeLimitExceededException
@@ -20,7 +21,7 @@ class MessageProducer {
     /**
      * Manages interactions with the AMQP broker.
      */
-    private final AmqpTemplate template
+    private final RabbitTemplate template
 
     /**
      * JSON codec.
@@ -33,7 +34,8 @@ class MessageProducer {
         mapper = aMapper
     }
 
-    static void xrayTemplate( String segmentName, Closure logic ) {
+    void xrayTemplate( String segmentName, Closure logic ) {
+        template.setReplyTimeout( 2500 )
         def segment =  AWSXRay.beginSegment( segmentName )
         try {
             segment.setNamespace( Namespace.REMOTE as String )
@@ -49,11 +51,14 @@ class MessageProducer {
         }
         catch ( TimeLimitExceededException e ) {
             segment.addException( e )
+            segment.setThrottle( true )
+            segment.setError( true )
             segment.putHttp( 'response', ['status': 429] )
             //throw e
         }
         catch ( Exception e ) {
             segment.addException( e )
+            segment.setFault( true )
             segment.putHttp( 'response', ['status': 500] )
             //throw e
         }

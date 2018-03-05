@@ -44,7 +44,8 @@ class Application implements RabbitListenerConfigurer {
      */
     @Bean
     List<String> subjects() {
-        ['dog', 'cat', 'mouse', 'bear', 'shark', 'whale', 'dolphin', 'porpoise', 'spider', 'grasshopper', 'bumble bee', 'dragon fly']
+        //['dog', 'cat', 'mouse', 'bear', 'shark', 'whale', 'dolphin', 'porpoise', 'spider', 'grasshopper', 'bumble bee', 'dragon fly']
+        (1..100).collect { Integer.toHexString( it ) }
     }
 
     @Bean

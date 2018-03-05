@@ -17,7 +17,7 @@ class TopologyGenerator {
         def nodes = subjects.collect {
             int latency = ThreadLocalRandom.current().nextInt( 100, 750 )
             int error = ThreadLocalRandom.current().nextInt( 5,100 )
-            new ServicePath( label: it, errorPercentage: 5, latencyMilliseconds: 250 )
+            new ServicePath( label: it, errorPercentage: 0, latencyMilliseconds: 0 )
         }
         def bottomTier = (1..oneQuarter).collect { nodes.pop() }.sort()
         def middleTier = (1..oneHalf).collect { nodes.pop() }.sort()
